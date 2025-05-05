@@ -1,0 +1,66 @@
+Aufgabe 1)
+
+http.request.method == "POST"
+http.response.code !=200 and http.response.code != 304 and http.response.code != 302
+icmp
+
+Aufgabe 2)
+
+traceroute to www.anu.edu.au (130.56.67.33), 60 hops max, 60 byte packets
+ 1  kabelbox.local (192.168.0.1)  1.263 ms  1.291 ms  1.351 ms
+ 2  * * *
+ 3  ip5886cb75.static.kabel-deutschland.de (88.134.203.117)  95.648 ms ip5886c96d.static.kabel-deutschland.de (88.134.201.109)  93.908 ms ip5886cb75.static.kabel-deutschland.de (88.134.203.117)  95.618 ms
+ 4  145.254.3.170 (145.254.3.170)  138.726 ms 145.254.3.168 (145.254.3.168)  138.711 ms  138.696 ms
+ 5  145.254.2.207 (145.254.2.207)  138.682 ms 145.254.2.179 (145.254.2.179)  138.667 ms 145.254.2.195 (145.254.2.195)  139.499 ms
+ 6  de-cix.fra.zayo.com (80.81.192.255)  141.003 ms xe-1-2-0.mpr1.fra4.de.above.net (80.81.194.26)  47.146 ms  47.088 ms
+ 7  ae1.cs1.fra6.de.eth.zayo.com (64.125.29.56)  173.929 ms ae12.cs1.fra6.de.eth.zayo.com (64.125.26.172)  184.478 ms ae1.cs1.fra6.de.eth.zayo.com (64.125.29.56)  191.428 ms
+ 8  * * *
+ 9  * * *
+10  * * *
+11  * * *
+12  * * *
+13  * * *
+14  * * *
+15  * * *
+16  * * *
+17  * * *
+18  * * ae27.mpr1.sea1.us.zip.zayo.com (64.125.29.1)  185.720 ms
+19  64.125.193.130.i223.above.net (64.125.193.130)  161.629 ms  166.159 ms  179.795 ms
+20  et-10-0-5.170.pe1.brwy.nsw.aarnet.net.au (113.197.15.62)  317.123 ms  340.013 ms  347.560 ms
+21  et-1-1-0.pe1.rsby.nsw.aarnet.net.au (113.197.15.12)  346.769 ms  348.402 ms  357.889 ms
+22  et-0-3-0.pe1.actn.act.aarnet.net.au (113.197.15.11)  312.798 ms  305.337 ms  301.411 ms
+23  138.44.161.3 (138.44.161.3)  294.493 ms  298.111 ms  332.110 ms
+24  core-te-1-1-4.anu.edu.au (150.203.201.5)  332.094 ms  304.630 ms  306.106 ms
+25  vlan-2100-palo.anu.edu.au (150.203.201.33)  316.552 ms  296.000 ms  295.901 ms
+26  tuckwell.anu.edu.au (130.56.67.33)  306.571 ms  314.548 ms  319.462 ms
+27  anulb02-common-self-ip.anu.edu.au (130.56.66.250)  3046.199 ms !H  3048.151 ms !H  2724.094 ms !H
+
+traceroute listet alle Knoten auf dem Weg zu einem Ziel Knoten (Host) auf. Hiefür benötigt es die Adressse des Zielknotens.
+Traceroute nutzt dafür das ttl (Time to Live) Feld des IP Protokolls, welches die maximale Zeit angbigt, die das Paket noch unterwegs sein darf.
+Jeder Knoten misst die Zeit, die er zur Verarbeitung des Pakets braucht und zieht von der ttl ab.
+Jedoch wird die ttl immer um mindestens eins verringert, sodass die ttl effektiv ein "hop" Counter ist.
+Erreicht die ttl eines Paketes 0, wird eine Antwort vom Typ Time_exceeded gesendet.
+Diese Antwort enthält die Adresse des bearbeitenden Knotens.
+
+Traceroute sendet also eine Sequenz von Paketen beginnend mit einer ttl von 1.
+Bei jedem weiteren Paket wird die ttl um eins erhöht.
+So kann Traceroute alle Knoten die auf dem Pfad eines Pakets liegen auflisten.
+
+In meiner Ausgabe des Befehls sehen wir, dass ein Paket zuerst an meinen Router gesendet wird.
+Dieser leitet das Paket an einen Kabel Deutschland Knoten, Ein Knoten meines Providers, weiter.
+Es folgen zwei hops mit IPs ohne dns Namen.
+Vermutlich werden die Pakete nach Frankfurt geroutet.
+Anschließend folgen Knoten, welche keine Time_exceeded response verschicken.
+Die letzen Hops zeigen den Weg durch das australische Netz zur enstprechenden Zieladresse.
+Der letzte Hop ist mit einem !H gekennzeichnet, welcher angibt, dass der Host nicht erreicht werden konnte.
+Dies liegt daran, dass traceroute einen Port anfragt, welcher vermutlich geschlossen ist, weshalb der Host erwartbar nicht antwortet,
+Wir haben also den Zielknoten erreicht.
+
+Aufgabe 3)
+
+tcp scans sind wesentlich schneller als udp scans, denn udp ist ein Verbindugsloses Protokoll.
+Dies führt dazu, dass im Gegensatz zu tcp, keine Antwort von einem udp Port zu erwarten ist.
+Udp Ports können erst als geschlossen markiert werden, wenn eine ICMP Unreachable Antwort kommt.
+Der Linux Kernel 2.4.20 beschränkt das Senden einer Destination-unreachable Nachricht auf eine pro Sekunde, was bei 65536 zu scannenden Ports über 18 Stunden Laufzeit bedeuten würde.
+Bei Wenn ein offener Port nicht antwortet kann das dazu führen, dass nmap weitere Pakete an diesen Port schickt. Dies verlängert zusätzlich die Laufzeit.
+Laut der man page von nmap kann man Scans beschleunigen indem man zum Beispiel, mehrere Hosts parallel scant, zuerst nur einen schnellen Scan der beliebten Ports durchführt, von hinter der Firewall scant und die Option --host-timeout benutzen, um langsame Hosts auszulassen. 
