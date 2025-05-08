@@ -1,66 +1,84 @@
 import java.io.IOException;
 import java.net.*;
-import java.util.LinkedList;
-
+import java.util.Stack;
 
 public class TokenRing {
 
+    
     private static void loop(DatagramSocket socket, String ip, int port, boolean first){
-        LinkedList<Token.Endpoint> candidates = new LinkedList<>();
+        
+        Stack<Token.Endpoint> candidates = new Stack<>();
+        
         if (first) {
-            candidates.add(new Token.Endpoint(ip, port));
+            candidates.push(new Token.Endpoint(ip, port));
         }
+        
         while (true) {
             try {
-                Token rc = Token.receive(socket);
-                Token.sendAck(socket, rc.last());
 
-                System.out.printf("Token: seq=%d, #members=%d", rc.getSequence(), rc.length());
-                for (Token.Endpoint endpoint : rc.getRing()) {
-                    System.out.printf(" (%s, %d)", endpoint.ip(), endpoint.port());
-                }
-                System.out.println();
+                Token rc = Token.receive(socket);
+                Thread.sleep(1000);
+                
                 if (rc.length() == 1) {
-                    candidates.add(rc.pollFirst());
+                    candidates.push(rc.pollFirst());
                     if (!first) {
                         continue;
                     }
                 }
                 first = false;
-                for (Token.Endpoint candidate : candidates) {
-                    rc.append(candidate);
+                while(!candidates.empty())
+                {   
+                    rc.append(candidates.pop());
                 }
-                candidates.clear();
-                
-                while(true)
-                {
-                    //only this Node left
-                    if(rc.length() == 1) break;
 
-                    Token.Endpoint next = rc.pollFirst();
-                    rc.append(next);
-                    rc.incrementSequence();
-                    Thread.sleep(1000);
-                    rc.send(socket, next);
+                System.out.println(toString(rc));
 
-                    if(Token.receivedAck(socket))
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        rc.pollLast();
-                        continue;
-                    }
-                }
+                send(socket, rc);
             }
             catch (IOException e) {
-                System.out.println("Error receiving packet: " + e.getMessage());
+                System.out.println(e.getMessage());
             }
             catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
+                System.out.println(e.getMessage());
             }
         }
+    }
+
+    public static void send(DatagramSocket s, Token rc) throws IOException
+    {
+        while(true)
+        {
+            //only this Node left
+            if(rc.length() == 1)
+            {
+                break;
+            }
+
+            Token.Endpoint next = rc.pollFirst();
+            rc.append(next);
+            rc.incrementSequence();
+            rc.send(s, next);
+            if(Token.receivedAck(s))
+            {
+                break;
+            }
+            else
+            {
+                rc.pollLast();
+            }
+        }
+    }
+
+
+    public static String toString(Token rc)
+    {
+        String temp = "Token: seq="+rc.getSequence() + ", members=" + rc.length() + "{";
+        for (Token.Endpoint endpoint : rc.getRing()) {
+            temp = temp + "(" + endpoint.ip()  + ", " + endpoint.port() + ")";
+        }
+        temp = temp + "}\n";
+        
+        return temp;
     }
 
     public static void main(String[] args) {
@@ -69,14 +87,21 @@ public class TokenRing {
             String ip = socket.getLocalAddress().getHostAddress();
             socket.disconnect();
             int port = socket.getLocalPort();
-            System.out.printf("UDP endpoint is (%s, %d)\n", ip, port);
+            System.out.printf("UDP endpoint is (%s %d)\n", ip, port);
             if (args.length == 0) {
                 loop(socket,ip,port,true);
             }
             else if (args.length == 2) {
                 Token rc = new Token().append(ip,port);
                 rc.send(socket,args[0],Integer.parseInt(args[1]));
-                loop(socket,ip,port,false);
+                if(Token.receivedAck(socket))
+                {
+                    loop(socket,ip,port,false);
+                }
+                else
+                {
+                    System.out.println("Host unreachable");
+                }
             }
             else {
                 System.out.println("Usage: \"java TokenRing\" or \"java TokenRing <ip> <port>\"");

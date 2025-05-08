@@ -13,7 +13,7 @@ import java.util.Deque;
 public class Token {
 
     private static final int max_buffer_size = 4096;
-    private static final int time_out_ms = 2000; //2 Second Timeout
+    private static final int time_out_ms = 10000; //10 Second Timeout
     private static final int no_time_out = 0; //2 Second Timeout
 
     public record Endpoint(String ip, int port) {}
@@ -74,43 +74,50 @@ public class Token {
         sequence++;
     }
 
+    public void send (DatagramSocket s, Endpoint endpoint) throws IOException {
+        send(s, endpoint.ip(), endpoint.port());
+    }
+
     public void send (DatagramSocket s, String ip_address, int port ) throws IOException {
         String rc_json = toJSON();
         byte[] rc_json_bytes = rc_json.getBytes(StandardCharsets.UTF_8);
         InetAddress address = InetAddress.getByName(ip_address);
         DatagramPacket packet = new DatagramPacket(rc_json_bytes, rc_json_bytes.length, address, port);
-        System.out.printf("Sending %s to %s:%d\n", rc_json, ip_address, port);
         s.send(packet);
+        System.out.printf("Sended %s to %s:%d\n", rc_json, packet.getAddress().getHostAddress(), packet.getPort());
+    }
+    
+    public void sendAck(DatagramSocket s, Endpoint e) throws IOException
+    {
+        sendAck(s, e.ip, e.port);
     }
 
-    public void send (DatagramSocket s, Endpoint endpoint) throws IOException {
-        send(s, endpoint.ip(), endpoint.port());
+    public void sendAck(DatagramSocket s, String ip_address, int port) throws IOException
+    {
+        String ack = "ack";
+        byte[] bytes = ack.getBytes(StandardCharsets.UTF_8);
+        InetAddress address = InetAddress.getByName(ip_address);
+        DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address, port);
+        s.send(packet);
+        System.out.printf("send ack to %s:%d \n", packet.getAddress().getHostAddress(), packet.getPort());
     }
 
-    public static Token receive(DatagramSocket s) throws IOException {
+    public static Token receive(DatagramSocket s) throws IOException, InterruptedException
+    {
         byte[] buf = new byte[max_buffer_size];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         s.receive(packet);
+
+        InetAddress sender_ip = packet.getAddress();
+        int sender_port = packet.getPort();
+        Thread.sleep(50);
+        
         String rc_json = new String(packet.getData(),0,packet.getLength(), StandardCharsets.UTF_8);
         System.out.printf("Received %s from %s:%d\n", rc_json, packet.getAddress().getHostAddress(), packet.getPort());
-        return fromJSON(rc_json);
-    }
+        Token rc = fromJSON(rc_json);
 
-    public static void sendAck(DatagramSocket s, String ip, int port) throws IOException
-    {
-
-        byte[] buf = new byte[max_buffer_size];
-        InetAddress address = InetAddress.getByName(ip);
-        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
-        s.send(packet);
-    }
-
-    public static void sendAck(DatagramSocket s, Endpoint e) throws IOException
-    {
-        byte[] buf = new byte[max_buffer_size];
-        InetAddress address = InetAddress.getByName(e.ip);
-        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, e.port);
-        s.send(packet);
+        rc.sendAck(s, sender_ip.getHostAddress(), sender_port);
+        return rc;
     }
 
     public static boolean receivedAck(DatagramSocket s) throws IOException
@@ -120,12 +127,15 @@ public class Token {
         s.setSoTimeout(time_out_ms);
         try {
             s.receive(packet);
+            System.out.printf("received ack from %s:%d\n",packet.getAddress().getHostAddress(), packet.getPort());
+            s.setSoTimeout(no_time_out);
         }
         catch (SocketTimeoutException sto)
         {
+            System.out.println("Host unreachable");
+            s.setSoTimeout(no_time_out);
             return false;
         }
-        s.setSoTimeout(no_time_out);
         return true;
     }
 
