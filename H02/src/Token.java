@@ -96,6 +96,23 @@ public class Token {
         return fromJSON(rc_json);
     }
 
+    public static void sendAck(DatagramSocket s, String ip, int port) throws IOException
+    {
+
+        byte[] buf = new byte[max_buffer_size];
+        InetAddress address = InetAddress.getByName(ip);
+        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
+        s.send(packet);
+    }
+
+    public static void sendAck(DatagramSocket s, Endpoint e) throws IOException
+    {
+        byte[] buf = new byte[max_buffer_size];
+        InetAddress address = InetAddress.getByName(e.ip);
+        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, e.port);
+        s.send(packet);
+    }
+
     public static boolean receivedAck(DatagramSocket s) throws IOException
     {
         byte[] buf = new byte[max_buffer_size];
