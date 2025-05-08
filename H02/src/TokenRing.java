@@ -13,13 +13,14 @@ public class TokenRing {
         while (true) {
             try {
                 Token rc = Token.receive(socket);
+                
                 System.out.printf("Token: seq=%d, #members=%d", rc.getSequence(), rc.length());
                 for (Token.Endpoint endpoint : rc.getRing()) {
                     System.out.printf(" (%s, %d)", endpoint.ip(), endpoint.port());
                 }
                 System.out.println();
                 if (rc.length() == 1) {
-                    candidates.add(rc.poll());
+                    candidates.add(rc.pollFirst());
                     if (!first) {
                         continue;
                     }
@@ -29,7 +30,7 @@ public class TokenRing {
                     rc.append(candidate);
                 }
                 candidates.clear();
-                Token.Endpoint next = rc.poll();
+                Token.Endpoint next = rc.pollFirst();
                 rc.append(next);
                 rc.incrementSequence();
                 Thread.sleep(1000);
@@ -42,6 +43,11 @@ public class TokenRing {
                 System.out.println("Error: " + e.getMessage());
             }
         }
+    }
+
+    public static void ackTokenReceived(Token rc)
+    {
+
     }
 
     public static void main(String[] args) {

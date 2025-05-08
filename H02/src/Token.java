@@ -5,13 +5,16 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
-import java.util.Queue;
+import java.util.Deque;
 
 public class Token {
 
     private static final int max_buffer_size = 4096;
+    private static final int time_out_ms = 2000; //2 Second Timeout
+    private static final int no_time_out = 0; //2 Second Timeout
 
     public record Endpoint(String ip, int port) {}
 
@@ -25,12 +28,32 @@ public class Token {
         return this;
     }
 
-    public Endpoint first() {
-        return ring.peek();
+    public boolean remove(Endpoint Endpoint)
+    {
+        return ring.remove(Endpoint);
     }
 
-    public Endpoint poll() {
-        return ring.poll();
+    public boolean remove(String ip, int port)
+    {
+        return ring.remove(new Endpoint(ip, port));
+    }
+
+    public Endpoint first() {
+        return ring.peekFirst();
+    }
+
+    public Endpoint pollFirst() {
+        return ring.pollFirst();
+    }
+
+    public Endpoint last()
+    {
+        return ring.peekLast();
+    }
+
+    public Endpoint pollLast()
+    {
+        return ring.pollLast();
     }
 
     public int length () {
@@ -73,10 +96,26 @@ public class Token {
         return fromJSON(rc_json);
     }
 
-    @JsonProperty
-    private final Queue<Endpoint> ring = new LinkedList<>();
+    public static boolean receivedAck(DatagramSocket s) throws IOException
+    {
+        byte[] buf = new byte[max_buffer_size];
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        s.setSoTimeout(time_out_ms);
+        try {
+            s.receive(packet);
+        }
+        catch (SocketTimeoutException sto)
+        {
+            return false;
+        }
+        s.setSoTimeout(no_time_out);
+        return true;
+    }
 
-    public Queue<Endpoint> getRing() {
+    @JsonProperty
+    private final Deque<Endpoint> ring = new LinkedList<>();
+
+    public Deque<Endpoint> getRing() {
         return ring;
     }
 
