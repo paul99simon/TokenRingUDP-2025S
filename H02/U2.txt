@@ -64,3 +64,19 @@ Udp Ports können erst als geschlossen markiert werden, wenn eine ICMP Unreachab
 Der Linux Kernel 2.4.20 beschränkt das Senden einer Destination-unreachable Nachricht auf eine pro Sekunde, was bei 65536 zu scannenden Ports über 18 Stunden Laufzeit bedeuten würde.
 Bei Wenn ein offener Port nicht antwortet kann das dazu führen, dass nmap weitere Pakete an diesen Port schickt. Dies verlängert zusätzlich die Laufzeit.
 Laut der man page von nmap kann man Scans beschleunigen indem man zum Beispiel, mehrere Hosts parallel scant, zuerst nur einen schnellen Scan der beliebten Ports durchführt, von hinter der Firewall scant und die Option --host-timeout benutzen, um langsame Hosts auszulassen. 
+
+Aufgabe 4)
+Ich habe den TokenRing so verändert, dass er ausgefallene Knoten erkennen kann.
+Dies geschieht, indem ein Knoten nach dem Versenden des Tokens darauf wartet, dass der Zielknoten den Erhalt des Paketes quittiert.
+Dies geschieht über den selben Port mit dem auch das Token selbst vershickt wird.
+
+Diese Methode ist einfach aber hat auch ein paar Nachteile.
+Zum einen fällt immer noch der ganze Ring aus, wenn der Rechner, der gerade mit der Verarbeitung des Tokens beschhäftig ist ausfällt.
+Zum Anderen kann es zu unwerwünschtem Verhalten kommen, wenn ein Knoten, der gerade auf eine Quittung wartet, eine Beitritssanfrage bekommt.
+
+Um dies zu vermeiden, könnte man Beitritssanfragen und das Versenden des Tokens auf zwei unterschiedlichen Ports durchführen.
+Jeder Knoten benötigt dann zwei Threads, die die jeweiligen Ereignisse verarbeiten.
+Diese müssten mithilfe einer threadsafen Datenstruktur kommunizieren.
+
+Um einen Ausfallen während der Verarbeitung zu kompensieren, müsste der Ring nach einer gewissen Zeit erneut mit dem Senden des zuletzt empfangenen Token anfangen.
+Diese Änderungen habe ich aber aus Zeitgründen nicht implementiert, da dies in meinen Augen auch kein "Verändern" sondern ein kompletter Rewrite wäre.
